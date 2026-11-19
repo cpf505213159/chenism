@@ -51,7 +51,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               description: site.description,
               url: site.url,
               email: `mailto:${site.email}`,
-              sameAs: ['https://github.com/chenism'],
+              // 社交主页也来自后台配置，只取绝对 URL（mailto 之类的放进去没意义）
+              sameAs: site.socials
+                .filter((s) => /^https?:/i.test(s.href))
+                .map((s) => s.href),
             }),
           }}
         />

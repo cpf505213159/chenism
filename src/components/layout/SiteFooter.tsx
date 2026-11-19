@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getAiMode } from '@/lib/ai/guard';
 import { Container } from '@/components/ui/Container';
 import { GithubIcon, MailIcon } from '@/components/ui/Icons';
-import { site } from '@/data/site';
+import { site, getSocial, socialHref } from '@/data/site';
 import { isAdminEnabled } from '@/lib/admin/guard';
 import { AdminEntry } from './AdminEntry';
 
@@ -10,6 +10,7 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
   // 后台不可用的环境下，入口连渲染都不渲染
   const adminEnabled = isAdminEnabled();
+  const github = getSocial('github');
 
   return (
     <footer className="mt-8 border-t border-line">
@@ -28,15 +29,17 @@ export function SiteFooter() {
                 <MailIcon size={13} />
                 {site.email}
               </a>
-              <a
-                href="https://github.com/chenism"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[0.78rem] text-muted transition-colors hover:border-line-strong hover:text-ink"
-              >
-                <GithubIcon size={13} />
-                GitHub
-              </a>
+              {github && (
+                <a
+                  href={socialHref(github)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[0.78rem] text-muted transition-colors hover:border-line-strong hover:text-ink"
+                >
+                  <GithubIcon size={13} />
+                  {github.label}
+                </a>
+              )}
             </div>
           </div>
 

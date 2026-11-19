@@ -4,7 +4,7 @@ import { Container } from '@/components/ui/Container';
 import { PrintButton } from '@/components/resume/PrintButton';
 import { ArrowUpRight } from '@/components/ui/Icons';
 import { getResume } from '@/data/resume';
-import { site } from '@/data/site';
+import { site, getSocial, socialHref } from '@/data/site';
 import { durationMonths, formatDuration, formatMonth, formatPeriod } from '@/lib/utils/format';
 
 /**
@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 
 export default function ResumePage() {
   const resume = getResume();
+  const github = getSocial('github');
   return (
     <Container className="py-12 sm:py-16">
       {/* 抬头 */}
@@ -40,15 +41,17 @@ export default function ResumePage() {
               <span aria-hidden>·</span>
               <span>{site.location}</span>
               <span aria-hidden>·</span>
-              <a
-                href="https://github.com/chenism"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex items-center gap-1 transition-colors hover:text-accent"
-              >
-                github.com/chenism
-                <ArrowUpRight size={11} />
-              </a>
+              {github && (
+                <a
+                  href={socialHref(github)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-accent"
+                >
+                  {github.href.replace(/^https?:\/\//, '')}
+                  <ArrowUpRight size={11} />
+                </a>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2 no-print">

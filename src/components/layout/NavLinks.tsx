@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/format';
-import { nav } from '@/data/site';
+// 从 nav 模块取，而不是 site：site.ts 里有 node:fs（运行时读配置），不能进客户端 bundle
+import { nav } from '@/data/nav';
 
 export function NavLinks({
   className,

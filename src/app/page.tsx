@@ -7,7 +7,7 @@ import { getFeaturedProjects, getProofMetrics, getAllProjects } from '@/lib/cont
 import { getSiteStats } from '@/lib/site-stats';
 import { DataSnapshot } from '@/components/egg/DataSnapshot';
 import { getResume } from '@/data/resume';
-import { site } from '@/data/site';
+import { site, getSocial, socialHref } from '@/data/site';
 import { cn, formatPeriod } from '@/lib/utils/format';
 
 /**
@@ -19,6 +19,7 @@ export const dynamic = 'force-dynamic';
 
 export default function HomePage() {
   const resume = getResume();
+  const github = getSocial('github');
   const stats = getSiteStats();
   const featured = getFeaturedProjects(3);
   const proofs = getProofMetrics(3);
@@ -65,16 +66,19 @@ export default function HomePage() {
                   <DownloadIcon size={15} />
                   下载简历 PDF
                 </a>
-                <a
-                  href="https://github.com/chenism"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1.5 px-1 text-[0.875rem] text-muted transition-colors hover:text-ink"
-                >
-                  <GithubIcon size={15} />
-                  GitHub
-                  <ArrowUpRight size={13} />
-                </a>
+                {/* GitHub 等社交入口从后台配置读，不再写死地址 */}
+                {github && (
+                  <a
+                    href={socialHref(github)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1.5 px-1 text-[0.875rem] text-muted transition-colors hover:text-ink"
+                  >
+                    <GithubIcon size={15} />
+                    {github.label}
+                    <ArrowUpRight size={13} />
+                  </a>
+                )}
               </div>
             </div>
 
