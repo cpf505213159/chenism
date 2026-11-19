@@ -98,12 +98,26 @@ export function Live2DCharacter({
   look,
   mood,
   className,
+  onVisible,
 }: {
   look: CompanionLook;
   mood: 'idle' | 'thinking' | 'happy';
   className?: string;
+  /** 首次就位（渲染成功或降级为静态头像）时回调一次，用于收掉出场粒子 */
+  onVisible?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  // 用 ref 持有回调，避免它变化时把初始化 effect 重跑一遍（会重建 WebGL 上下文）
+  const onVisibleRef = useRef(onVisible);
+  const settledRef = useRef(false);
+  useEffect(() => {
+    onVisibleRef.current = onVisible;
+  }, [onVisible]);
+  const markVisible = () => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    onVisibleRef.current?.();
+  };
   const motionRef = useRef<((group: string) => void) | null>(null);
   // 模型的动作组名不统一，加载后记下可用的手势组，供情绪联动使用
   const gestureGroupRef = useRef<string | null>(null);
@@ -200,6 +214,8 @@ export function Live2DCharacter({
         };
 
         l2d.on('loaded', () => {
+          // 先通知外层收粒子，再做自己的显示逻辑
+          markVisible();
           if (disposed) return;
           setStatus('ready');
           // canvas 是命令式插入的，React 的 style 管不到它，这里手动淡入
@@ -307,6 +323,8 @@ export function Live2DCharacter({
       } catch (error) {
         // 出错时给出可诊断的日志，而不是静默降级成占位图
         console.warn('[live2d] 初始化失败', error);
+        // 失败也通知外层：粒子不能一直飘着
+        markVisible();
         if (!disposed) setStatus('error');
       }
     });

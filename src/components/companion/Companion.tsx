@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Mood } from './CompanionAvatar';
 import { Live2DCharacter } from './Live2DCharacter';
+import { RevealParticles } from './RevealParticles';
 import { COMPANION_LOOK } from './models';
 import { postAsk, type Citation } from '@/lib/ai/client';
 import { SearchIcon } from '@/components/ui/Icons';
@@ -25,6 +26,8 @@ export function Companion() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [peek, setPeek] = useState(false);
+  // 角色是否已经就位（Live2D 渲染完成，或降级为静态头像）；就位后收掉出场粒子
+  const [figureReady, setFigureReady] = useState(false);
   const [mood, setMood] = useState<Mood>('idle');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState('');
@@ -303,9 +306,12 @@ export function Companion() {
               aria-hidden
               className="absolute bottom-1 h-3 w-20 rounded-full bg-ink/10 blur-[7px]"
             />
+            {/* 出场粒子：垫在角色下面，角色就位后自动淡出并停止 */}
+            <RevealParticles active={!figureReady} />
             <Live2DCharacter
               look={COMPANION_LOOK}
               mood={mood}
+              onVisible={() => setFigureReady(true)}
               className={cn(
                 'relative h-full w-full transition-transform duration-300',
                 'group-hover:-translate-y-0.5',
