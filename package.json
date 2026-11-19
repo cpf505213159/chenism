@@ -1,0 +1,47 @@
+{
+  "name": "chenism-site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "check:content": "node scripts/check-content.mjs",
+    "repos:sync": "node scripts/fetch-repos.mjs --sync-snapshot",
+    "print:resume": "node scripts/print-resume.mjs",
+    "shoot": "node scripts/shoot.mjs",
+    "eval:ask": "node scripts/eval-ask.mjs",
+    "og": "node scripts/og-images.mjs",
+    "admin": "next dev",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^3.1.1",
+    "gray-matter": "^4.0.3",
+    "l2d": "^2.1.1",
+    "next": "^16.4.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^10.15.0",
+    "eslint-config-next": "^16.4.6",
+    "playwright-core": "^1.65.1",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.7.3",
+    "vitest": "^5.1.0",
+    "yaml": "^2.9.1"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}

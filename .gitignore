@@ -1,0 +1,33 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# 环境变量（.env.example 会提交）
+.env
+.env.local
+.env*.local
+
+# 截图与临时产物
+.shots/
+.preview/
+.tmp-model/
+.cache/*.tmp
+*.log
+
+# 本地 Agent 工作数据（工作日志/会话记忆），不进公开仓库
+.workbuddy/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+.idea/

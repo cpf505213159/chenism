@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:#efece7}#c{display:block}</style>
+<canvas id="c" width="380" height="460"></canvas>
+<script src="/live2d/live2dcubismcore.min.js"></script>
+<script src="/live2d/live2d.min.js"></script>
+<script type="module">
+  // 表情调试页：?_exp.html?e=smile 渲染一张带该表情的静态帧，供截图核对
+  const q = new URLSearchParams(location.search);
+  const name = q.get('e') ?? '';
+  const canvas = document.getElementById('c');
+  try {
+    const { init } = await import('/_l2d/index.js');
+    const l2d = init(canvas);
+    await l2d.load({ path: '/live2d/hiyori/Hiyori.model3.json', scale: 0.95, position: [0, 0.06], logLevel: 'error' });
+    l2d.resize();
+    if (name) l2d.setExpression(name);
+    await new Promise((r) => setTimeout(r, 1200));
+    window.__frame = canvas.toDataURL('image/png');
+    window.__exps = l2d.getExpressions?.() ?? [];
+    document.title = 'ready:' + window.__exps.join(',');
+  } catch (e) {
+    document.title = 'err:' + e.message;
+  }
+</script>

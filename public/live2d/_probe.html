@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:#efece7}#c{display:block}</style>
+<canvas id="c" width="300" height="360"></canvas>
+<script src="/live2d/live2dcubismcore.min.js"></script>
+<script src="/live2d/live2d.min.js"></script>
+<script type="module">
+  const p = new URLSearchParams(location.search);
+  const id = p.get('m'), file = p.get('f');
+  try {
+    const { init } = await import('/_l2d/index.js');
+    const l2d = init(document.getElementById('c'));
+    const vol = p.get('vol');
+    await l2d.load({
+      path: `/live2d/${id}/${file}`,
+      scale: 1.55,
+      position: [0, -0.2],
+      logLevel: 'error',
+      ...(vol ? { volume: Number(vol) } : {}),
+    });
+    l2d.resize();
+    document.title = 'ready';
+  } catch (e) {
+    document.title = 'err:' + e.message;
+  }
+</script>

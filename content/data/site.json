@@ -1,0 +1,23 @@
+{
+  "name": "陈攀峰",
+  "handle": "chenism",
+  "role": "数据分析师",
+  "tagline": "把业务问题拆成可验证的假设，再用数据给出能落地的答案。",
+  "description": "陈攀峰的个人站点：电商数据分析实践——用户增长、商品经营、大促复盘与客服体验，含可量化结果的项目详情、结构化简历与 SQL / Python / 建模的完整过程。",
+  "url": "http://localhost:3000",
+  "locale": "zh-CN",
+  "email": "hello@chenism.dev",
+  "location": "中国 · 杭州",
+  "available": "开放数据分析师岗位机会 · 杭州 / 远程",
+  "socials": [
+    { "label": "GitHub", "href": "https://github.com/chenism", "icon": "github" },
+    { "label": "邮箱", "href": "mailto:hello@chenism.dev", "icon": "mail" },
+    { "label": "RSS", "href": "/rss.xml", "icon": "rss" }
+  ],
+  "nav": [
+    { "label": "首页", "href": "/" },
+    { "label": "项目", "href": "/projects" },
+    { "label": "简历", "href": "/resume" },
+    { "label": "站内问答", "href": "/ask" }
+  ]
+}

@@ -1,0 +1,129 @@
+# 站内助手评测集 v2 · 2026-11-17（内容切换为数据分析师方向后重写）
+# 共 20 条（事实 5 / 对比 5 / 简历 5 / 边界 5）
+# 字段：q 问题 · expect_slugs 期望进 top-3 的 slug · must_cite 是否必须带站内出处
+#       expect_answer grounded=必须给出有出处结论 / unknown=必须承认站内没有
+# 用法：pnpm eval:ask（默认打到 http://localhost:3100）
+
+# ── 事实型（5）：单一项目、单一事实，Phase 1 就该答对 ──
+- q: 有没有做过用户流失相关的分析
+  expect_slugs: [ecom-churn]
+  must_cite: true
+  expect_answer: grounded
+  note: 最基础的一条，考「主题词 → 项目」的映射
+
+- q: 哪个项目用到了时间序列
+  expect_slugs: [cs-staffing]
+  must_cite: true
+  expect_answer: grounded
+  note: 考技术名词命中能否抬高整条项目排序
+
+- q: 有没有做过客服质检
+  expect_slugs: [cs-qa]
+  must_cite: true
+  expect_answer: grounded
+  note: 短问句，考标题与摘要的权重是否足够
+
+- q: 有没有做过用户分层
+  expect_slugs: [ecom-segment]
+  must_cite: true
+  expect_answer: grounded
+  note: 业务名词命中，考摘要与正文的一致性
+
+- q: 有没有做过指标体系
+  expect_slugs: [bi-metrics]
+  must_cite: true
+  expect_answer: grounded
+  note: 术语型查询，考 tags 与标题
+
+# ── 对比 / 跨项目型（5）：需要多个项目同时进 top-3 ──
+- q: 哪两个项目跟客服有关
+  expect_slugs: [cs-qa, cs-staffing]
+  must_cite: true
+  expect_answer: grounded
+  note: 一对多召回，考同 domain 的两个项目能否同时出现
+
+- q: 有没有做过大促复盘
+  expect_slugs: [ecom-promo]
+  must_cite: true
+  expect_answer: grounded
+  note: 场景型查询；原题「两个电商方向的项目」在补充到 4 个电商项目后已无唯一答案，改为单点题
+
+- q: 哪些项目涉及预测
+  expect_slugs: [cs-staffing, ecom-churn]
+  must_cite: true
+  expect_answer: grounded
+  note: 动词型查询，考「预测」在多个项目里的分布
+
+- q: 有没有做过 AB 实验相关的工作
+  expect_slugs: [ab-experiment]
+  must_cite: true
+  expect_answer: grounded
+  note: 英文缩写命中，考分词对 AB 这类短词的处理
+
+- q: 哪个项目用 scikit-learn 做流失预测
+  expect_slugs: [ecom-churn]
+  must_cite: true
+  expect_answer: grounded
+  note: 技术栈 + 场景双条件；原题「哪些项目用到 scikit-learn」有歧义（三个项目都用）
+
+# ── 简历型（5）：答案来自 resume 块 ──
+- q: 他在上一家公司主要负责什么
+  expect_slugs: [resume]
+  must_cite: true
+  expect_answer: grounded
+  note: 模糊时间词「上一家」能否命中 resume.work
+
+- q: 他是哪个学校毕业的，学什么专业
+  expect_slugs: [resume]
+  must_cite: true
+  expect_answer: grounded
+  note: 纯事实抽取，考 education 块的措辞是否覆盖提问方式
+
+- q: 他最近在做什么
+  expect_slugs: [resume]
+  must_cite: true
+  expect_answer: grounded
+  note: 时间语义，考「目前 / 最近」这类词
+
+- q: 他的技术栈主要是什么
+  expect_slugs: [resume]
+  must_cite: true
+  expect_answer: grounded
+  note: 概括性问题，期待落到 skills 块
+
+- q: 他会 Java 吗
+  expect_slugs: [resume]
+  must_cite: true
+  expect_answer: grounded
+  note: 单一技能点查询，考简历与项目块谁该被召回
+
+# ── 边界拒答型（5）：站内确实没有 / 超出个人范围 / 空泛，必须拒答 ──
+- q: 有没有做过实时数仓
+  expect_slugs: []
+  must_cite: false
+  expect_answer: unknown
+  note: 站内没有实时数仓（只有离线分析与 BI），答「有」即为幻觉
+
+- q: 有没有做过 Kubernetes 集群运维
+  expect_slugs: []
+  must_cite: false
+  expect_answer: unknown
+  note: 站内项目均未涉及容器编排
+
+- q: 他期望薪资多少
+  expect_slugs: []
+  must_cite: false
+  expect_answer: unknown
+  note: 站内无该信息且属隐私
+
+- q: 能不能帮我内推，或者给点面试建议
+  expect_slugs: []
+  must_cite: false
+  expect_answer: unknown
+  note: 超出「这个站里有什么」的边界
+
+- q: 他厉害吗
+  expect_slugs: []
+  must_cite: false
+  expect_answer: unknown
+  note: 空泛评价题，正确行为是拒答并引导到具体项目

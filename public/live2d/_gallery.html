@@ -1,0 +1,65 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:#efece7;font-family:system-ui,"Microsoft YaHei",sans-serif}
+  #grid{display:grid;grid-template-columns:repeat(6,240px);gap:10px;padding:12px}
+  .cell{background:#fff;border-radius:8px;padding:6px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .cell img{width:228px;height:274px;object-fit:contain;background:#f7f5f1;border-radius:6px}
+  .cell .label{font-size:13px;color:#333;margin-top:4px}
+  #stage{position:fixed;left:-9999px;top:0}
+  #err{color:#c00}
+</style>
+<div id="grid"></div>
+<div id="stage"></div>
+<script src="/live2d/live2dcubismcore.min.js"></script>
+<script src="/live2d/live2d.min.js"></script>
+<script type="module">
+  const ids = new URLSearchParams(location.search).get('ids').split(',');
+  // 可选：?scale=1.1&posy=-0.35 覆盖默认取景（调单个模型的构图时用）
+  const q = new URLSearchParams(location.search);
+  const scale = Number(q.get('scale') ?? 1.55);
+  const posy = Number(q.get('posy') ?? -0.2);
+  const grid = document.getElementById('grid');
+  const stage = document.getElementById('stage');
+  const { init } = await import('/_l2d/index.js');
+
+  let done = 0;
+  const report = (err) => { document.title = `${done}/${ids.length}${err ? ' err' : ''}`; };
+
+  for (const id of ids) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = '<img alt=""><div class="label"></div>';
+    grid.appendChild(cell);
+
+    let label = id;
+    let entryFile = null;
+    try {
+      const entry = await (await fetch(`/live2d/${id}/entry.json`)).json();
+      entryFile = entry.file;
+      if (entry.name) label = `${entry.name} · ${id}`;
+    } catch { /* 旧模型没有 entry.json 里的名字 */ }
+
+    try {
+      if (!entryFile) {
+        const res = await fetch(`/live2d/${id}/`);
+        throw new Error('no entry');
+      }
+      // 每个模型都要全新的 canvas，避免 WebGL 上下文冲突
+      const canvas = document.createElement('canvas');
+      canvas.width = 456; canvas.height = 548; // 2x，缩小显示更清晰
+      stage.appendChild(canvas);
+      const l2d = init(canvas);
+      await l2d.load({ path: `/live2d/${id}/${entryFile}`, scale, position: [0, posy], logLevel: 'error' });
+      l2d.resize();
+      await new Promise((r) => setTimeout(r, 600)); // 等第一帧动作稳定
+      cell.querySelector('img').src = canvas.toDataURL('image/png');
+      canvas.remove();
+    } catch (e) {
+      cell.querySelector('img').replaceWith(Object.assign(document.createElement('div'), { id: 'err', textContent: '加载失败' }));
+    }
+    cell.querySelector('.label').textContent = label;
+    done++;
+    report();
+  }
+  report();
+</script>

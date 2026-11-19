@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 内容质量先于构建：字段缺失、重复 slug、模糊指标、站内死链
+      - run: pnpm check:content
+
+      - run: pnpm typecheck
+
+      # 构建期会跑 zod 校验；失败时错误会指到具体字段
+      - run: pnpm build
+        env:
+          SITE_URL: https://chenism.dev
+
+      # 静态性守卫：内容页不允许悄悄变成动态渲染（出现 ƒ 即失败）
+      - name: Assert no dynamic content routes
+        run: |
+          if grep -E "^[├└│ ]*ƒ /(projects|resume|$)" .next/routes-manifest.json 2>/dev/null; then
+            echo "内容页出现了动态路由，检查是否误用了 cookies()/headers()/searchParams"
+            exit 1
+          fi
+          echo "OK"
+
+      # 依赖安全基线：16.4.x 之后每月都有安全发版，高危只告警不阻塞
+      - run: pnpm audit --audit-level=high || true
