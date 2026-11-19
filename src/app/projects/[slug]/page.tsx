@@ -17,6 +17,13 @@ import { site } from '@/data/site';
 
 type Params = { slug: string };
 
+/**
+ * 每次请求重新渲染：后台改完项目详情后要立刻反映（原因见 /resume）。
+ * generateStaticParams 保留——构建时仍枚举 slug（sitemap / 静态导出兜底会用到），
+ * 只是页面本身不再被烤成静态 HTML。
+ */
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams(): Params[] {
   return getAllProjects().map((p) => ({ slug: p.slug }));
 }

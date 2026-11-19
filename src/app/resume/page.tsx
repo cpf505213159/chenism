@@ -7,6 +7,16 @@ import { getResume } from '@/data/resume';
 import { site } from '@/data/site';
 import { durationMonths, formatDuration, formatMonth, formatPeriod } from '@/lib/utils/format';
 
+/**
+ * 每次请求重新渲染。
+ *
+ * 之前这里是默认的静态预渲染（build 时把 HTML 烤死，revalidate=false），
+ * 结果在 /admin 里改完简历后，文件确实变了、/resume.json 也是新的，
+ * 但页面 HTML 一直是构建时那份——因为 revalidatePath() 对非 ISR 的纯静态路由
+ * 不会触发重新生成。简历页数据只有几 KB，SSR 成本可以忽略，换来"改完立刻生效"。
+ */
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: '简历',
   description: `${site.name} 的结构化简历：工作经历、教育背景、技能与荣誉。可打印为 PDF，或取 /resume.json。`,

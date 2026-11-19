@@ -10,6 +10,13 @@ import { getResume } from '@/data/resume';
 import { site } from '@/data/site';
 import { cn, formatPeriod } from '@/lib/utils/format';
 
+/**
+ * 每次请求重新渲染。
+ * 首页同样展示简历摘要与项目卡片，后台改完必须立刻反映——
+ * 纯静态预渲染下 revalidatePath() 不会触发重新生成（同 /resume）。
+ */
+export const dynamic = 'force-dynamic';
+
 export default function HomePage() {
   const resume = getResume();
   const stats = getSiteStats();

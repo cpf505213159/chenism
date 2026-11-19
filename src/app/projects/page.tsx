@@ -6,6 +6,9 @@ import { ProjectFilterBar } from '@/components/project/ProjectFilterBar';
 import { getAllProjects, getAllStacks } from '@/lib/content/repository';
 import { getAiMode } from '@/lib/ai/guard';
 
+/** 每次请求重新渲染：后台新增/编辑项目后，列表要立刻反映（同 /resume）。 */
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: '项目',
   description:
