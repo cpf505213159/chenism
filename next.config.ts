@@ -80,6 +80,21 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      /**
+       * 让 moc3 走 gzip。
+       *
+       * 模型二进制 434KB，gzip 后 221KB —— 在 3Mbps 的轻量服务器上差近一秒。
+       * 但 Next 的压缩中间件按 Content-Type 判断可压缩性（compressible 包），
+       * `application/octet-stream` 被判为不可压缩，默认一个字节都不压。
+       *
+       * 引擎读模型走 `fetch().arrayBuffer()`，完全不看 Content-Type；
+       * 这里标成 text/plain 只是为了让压缩中间件放行，不改变文件内容。
+       * 若以后换压缩策略，删掉这条即可回到不压缩（功能不受影响）。
+       */
+      {
+        source: '/live2d/hiyori/Hiyori.moc3',
+        headers: [{ key: 'Content-Type', value: 'text/plain; charset=utf-8' }],
+      },
       {
         source: '/:path*',
         headers: [

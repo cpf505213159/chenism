@@ -131,11 +131,11 @@ ogTagline: 一句话定位          # ≤24 字，分享卡第 2 行；缺省回
 
 | 项目 | 说明 |
 |---|---|
-| 模型 | `public/live2d/hiyori/`：`.moc3` + 2 张贴图（已降到 1024²）+ 物理 + 10 个动作 |
+| 模型 | `public/live2d/hiyori/`：`.moc3` + 2 张贴图（1024²，**运行时用 WebP**）+ 物理 + 10 个动作 |
 | 动作 | Idle ×9 + TapBody ×1。自动轮播挑过幅度最大的 4 个 idle（`m02/m05/m03/m06`），避免老是同一个动作 |
 | 表情 | 官方示例没带表情文件，`expressions/*.exp3.json` 是自建的三套：`smile` / `think` / `calm`，纯参数叠加 |
 | 状态 | 提问中 → `think` + idle 动作；答完 → `smile` + TapBody；2.6 秒后回 `calm` |
-| 体积 | 模型 1.8MB + 两个运行时内核 332KB；首次访问实测传输约 1.7MB，之后走缓存，且都在 `requestIdleCallback`（上限 900ms）之后才拉 |
+| 体积 | 首次传输约 **1.05MB**（贴图 WebP 340KB + moc3 434KB + 两个内核 gzip 后 95KB + 引擎包 167KB + 动作/物理/表情）；`/live2d`、`/_l2d` 走 30 天缓存，二次访问 **0 请求** |
 
 > 站内只保留这一套外观，不提供「换装」入口：Hiyori 官方只有一套衣服，换装需要换角色，没必要为了一个按钮换掉整张脸。
 
@@ -152,10 +152,19 @@ ogTagline: 一句话定位          # ≤24 字，分享卡第 2 行；缺省回
 ```
 public/live2d/live2dcubismcore.min.js   Cubism 4/5 内核（204KB）—— l2d 模块顶层就引用它
 public/live2d/live2d.min.js             Cubism 2 运行时（128KB）—— 引擎部分工具函数仍依赖它的全局符号
-public/live2d/hiyori/                   模型：moc3、2 张贴图、物理、动作、自建表情（1.8MB）
+public/live2d/hiyori/                   模型：moc3、2 张贴图（PNG 为源文件，运行时走同名 .webp）、物理、动作、自建表情
 ```
 
-**性能**：模型不进首屏。`l2d` 用运行时 `import()` 加载，两个内核与模型都在 `requestIdleCallback` 之后才拉；首屏 JS 没有增加，LCP 元素仍是文字。
+**性能**：模型不进首屏。`l2d` 用运行时 `import()` 加载，首屏 JS 没有增加，LCP 元素仍是文字。加载链路上做了四件事：
+
+1. **贴图用 WebP**：1024² 带 alpha，1132KB → 340KB（q=90，视觉几乎无损）。PNG 保留作源文件，回退只需把 `Hiyori.model3.json` 的 `Textures` 改回 `.png`。
+2. **静态资源长缓存**：`/live2d/*`、`/_l2d/*` 为 `max-age=2592000, stale-while-revalidate=604800`。Next 对 `public/` 默认给 `max-age=0`，等于每次打开都要重新验证——那才是"每次都要等"的真正原因。
+3. **并发预热**：挂载时立刻用 `new Image()` / `fetch` 拉纹理、moc3 和引擎包，与运行时脚本重叠下载。引擎自身的顺序是「运行时 → 引擎包 → `model3.json` → 才去下纹理」，不预热就形成瀑布。
+4. **两个运行时并行**：`live2dcubismcore.min.js` 与 `live2d.min.js` 用 `Promise.all` 并发，串行 `await` 会白白多等近一倍时间。
+
+`requestIdleCallback` 的上限从 900ms 压到 250ms：足够让首屏文字先 paint，又不至于让人盯着空位将近一秒。
+
+> 换模型或换贴图时记得**改文件名**（如 `texture_00@2.webp`）或路径版本，否则老访客最长 30 天才会拿到新资源。
 
 **接入踩过的四个坑**（都已在代码里处理）：
 
