@@ -21,7 +21,7 @@ export default function HomePage() {
     <>
       {/* Hero：5 秒内讲清我是谁、做过什么、去哪里看源码 */}
       <section className="border-b border-line">
-        <Container className="pb-16 pt-14 sm:pb-24 sm:pt-20">
+        <Container className="pb-20 pt-16 sm:pb-28 sm:pt-24">
           <div className="grid gap-12 lg:grid-cols-[1.55fr_1fr] lg:items-end">
             <div>
               <p className="mb-6 inline-flex items-center gap-2 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-faint">
@@ -34,7 +34,7 @@ export default function HomePage() {
 
               <h1 className="display">
                 {site.name}
-                <span className="mt-2 block text-[0.42em] font-normal tracking-[-0.01em] text-muted">
+                <span className="mt-3.5 block text-[0.42em] font-normal tracking-[-0.012em] text-muted">
                   {site.role}
                 </span>
               </h1>
@@ -91,8 +91,8 @@ export default function HomePage() {
 
       {/* 三条硬指标：直接给数字，不铺垫 */}
       {proofs.length > 0 && (
-        <section className="border-b border-line bg-surface/60">
-          <Container className="py-10">
+        <section className="border-b border-line bg-surface-2/45">
+          <Container className="py-12">
             <div className="grid gap-8 sm:grid-cols-3">
               {proofs.map((p) => (
                 <Link
@@ -143,7 +143,7 @@ export default function HomePage() {
           </Link>
         }
       >
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((p, i) => (
             <ProjectCard
               key={p.slug}

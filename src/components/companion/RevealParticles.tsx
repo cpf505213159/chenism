@@ -81,6 +81,15 @@ export function RevealParticles({ active }: { active: boolean }) {
       // 角色就位后开始淡出；只触发一次
       if (!activeRef.current && fadeAt < 0) fadeAt = elapsed;
 
+      // 兜底：万一模型既没 loaded 也没报错（网络卡在半路），15s 后也收掉，
+      // 不让粒子永远转下去白烧 CPU
+      if (elapsed > 15000) {
+        stopped = true;
+        cancelAnimationFrame(raf);
+        ctx.clearRect(0, 0, w, h);
+        return;
+      }
+
       let global = 1;
       if (fadeAt >= 0) {
         global = Math.max(0, 1 - (elapsed - fadeAt) / FADE_MS);

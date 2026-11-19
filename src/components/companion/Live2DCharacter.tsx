@@ -189,9 +189,8 @@ export function Live2DCharacter({
         canvas.setAttribute('aria-hidden', 'true');
         // 宽高交给引擎：它内部按 clientWidth × devicePixelRatio 计算，
         // 这里手写会和它的 resize 逻辑互相覆盖（canvas-manager 里有注释警告）
-        // 初始 opacity 为 0：先让首帧海报露出来，等 loaded 再淡入
-        canvas.style.cssText =
-          'display:block;width:100%;height:100%;opacity:0;transition:opacity 420ms ease;';
+        // 淡入由外层宿主 div 统一控制（见 return），canvas 自身不需要单独设透明度
+        canvas.style.cssText = 'display:block;width:100%;height:100%;';
         host.appendChild(canvas);
 
         const l2d = init(canvas);
@@ -218,8 +217,6 @@ export function Live2DCharacter({
           markVisible();
           if (disposed) return;
           setStatus('ready');
-          // canvas 是命令式插入的，React 的 style 管不到它，这里手动淡入
-          if (canvas) canvas.style.opacity = '1';
         });
 
         await l2d.load({
@@ -381,37 +378,20 @@ export function Live2DCharacter({
   }
 
   return (
-    <div ref={hostRef} className={className} style={{ position: 'relative' }}>
-      {/*
-        首帧海报：只有 12KB，几乎和 HTML 同时到位，让角色"立刻出现"，
-        而不是先空着几秒。等 Live2D 就绪后 canvas 盖上来淡入，两者同构图、同画风，
-        切换时只有呼吸和眨眼开始动，不会跳。
-
-        文件名带 `-2`：第一版截图时把下层页面元素也合成进去了，暗色主题下露出
-        一块灰底。`/live2d` 是 30 天缓存，必须换 URL 才能让老访客拿到修好的图。
-      */}
-      {/* eslint-disable-next-line @next/next/no-img-element --
-          定尺 12KB 首帧图，next/image 的按需缩放/格式转换在这里没有收益，
-          反而多一层运行时；这里要的是"和 HTML 同时到位"。 */}
-      <img
-        src="/live2d/hiyori/poster-2.webp"
-        alt=""
-        aria-hidden="true"
-        width={388}
-        height={464}
-        decoding="async"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          opacity: status === 'ready' ? 0 : 1,
-          transition: 'opacity 420ms ease',
-          pointerEvents: 'none',
-          userSelect: 'none',
-        }}
-      />
-    </div>
+    <div
+      ref={hostRef}
+      className={className}
+      style={{
+        /**
+         * 不再放静态首帧图。
+         * 上一版用 poster 顶住空白，但"静态图 → 动态模型"那一下切换会跳，
+         * 在慢设备上还会卡一帧。现在改成：模型没就绪前整块保持透明，
+         * 由外面那层粒子承担"出场"，模型画好后这里淡入，粒子同步收掉。
+         */
+        opacity: status === 'ready' ? 1 : 0,
+        transition:
+          'opacity 700ms cubic-bezier(0.22, 0.7, 0.28, 1), transform 300ms ease',
+      }}
+    />
   );
 }

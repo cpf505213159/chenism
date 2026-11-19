@@ -35,29 +35,10 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-/**
- * 在 HTML 解析前决定主题，避免闪白。
- * 顺序：localStorage → 系统偏好。失败时默认浅色。
- */
-const themeScript = `
-(function(){
-  try {
-    var stored = localStorage.getItem('theme');
-    var theme = stored === 'light' || stored === 'dark'
-      ? stored
-      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.dataset.theme = theme;
-  } catch (e) {
-    document.documentElement.dataset.theme = 'light';
-  }
-})();
-`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -74,15 +55,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
-        {/*
-          角色首帧海报提前下载。
-          Companion 有一个 `mounted` 门控（避免 hydration mismatch），海报的 img 要等
-          JS hydrate 完才渲染；若等那时再请求，白白多一次往返。这里让浏览器解析 HTML
-          时就开始下，等 img 出现时直接命中缓存。
-        */}
-        {getAiMode() !== 'off' && (
-          <link rel="preload" as="image" href="/live2d/hiyori/poster-2.webp" />
-        )}
       </head>
       <body className="min-h-dvh antialiased">
         <a
