@@ -79,8 +79,13 @@ async function ensureRuntimes(): Promise<void> {
   if (runtimesPromise) return runtimesPromise;
 
   runtimesPromise = (async () => {
-    await loadScript('/live2d/live2dcubismcore.min.js', 'live2d-core4');
-    await loadScript('/live2d/live2d.min.js', 'live2d-core2');
+    // 两个运行时互不依赖，必须并发：串行 await 会让 207KB 的下完才去下 129KB，
+    // 在 3Mbps 的服务器上白白多花将近一倍时间（实测曾多等 1.2s）。
+    // 注意仍要等两个都就绪再去 import 引擎包——它顶层就引用了 Live2DCubismCore。
+    await Promise.all([
+      loadScript('/live2d/live2dcubismcore.min.js', 'live2d-core4'),
+      loadScript('/live2d/live2d.min.js', 'live2d-core2'),
+    ]);
   })().catch((error) => {
     runtimesPromise = null;
     throw error;
@@ -109,23 +114,42 @@ export function Live2DCharacter({
   const [started, setStarted] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
 
-  // 首屏稳定后再开始，别和 LCP 抢带宽；但要给 idle 回调一个上限，
-  // 否则浏览器一直"忙"时看板娘会长时间空着（实测曾拖到 2.8s）。
+  // 挂载即开始预热最大件的资源（纹理 / moc3 / 引擎包），与下面的 idle 调度、
+  // 运行时脚本并行下载。引擎自己的顺序是「运行时 JS → 引擎包 → 读 model3.json
+  // → 才去下纹理和 moc3」，不预热的话这近 800KB 要等 JS 全部就绪才开始下，
+  // 在 3Mbps 服务器上就是主要的一段白等。
+  // 这里只下载不执行，失败也不处理——真正加载失败会走下面 effect 的 error 分支。
+  //
+  // 同时把 idle 的上限压到 250ms：原来的 900ms 意味着最坏情况下用户盯着空位
+  // 将近一秒才开始下载。250ms 足够让首屏文字先 paint，又不至于肉眼可见地空着。
   useEffect(() => {
+    for (const url of look.preload ?? []) {
+      if (/\.(png|webp)$/i.test(url)) {
+        // 引擎同样用 new Image() 取纹理，同 URL 会命中内存缓存，不会重复下载
+        new Image().src = url;
+      } else {
+        void fetch(url, { cache: 'force-cache' }).catch(() => undefined);
+      }
+    }
+    // 引擎包本身也提前下载（执行必须等运行时就绪，但下载可以并行）
+    void fetch('/_l2d/index.js', { cache: 'force-cache' }).catch(() => undefined);
+
     const idle: (cb: () => void, opts?: { timeout?: number }) => number =
-      window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 800));
+      window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 300));
     const handle = idle(
       () => {
         setStatus('loading');
         setStarted(true);
       },
-      { timeout: 900 },
+      { timeout: 250 },
     );
     return () => {
       if (window.cancelIdleCallback && typeof handle === 'number') {
         window.cancelIdleCallback(handle);
       }
     };
+    // look 在挂载时就固定了；换外观由父组件用 key 重挂载，故意不放进依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

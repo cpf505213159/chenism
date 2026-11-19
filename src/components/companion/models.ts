@@ -21,6 +21,16 @@ export type CompanionLook = {
   path: string;
   scale: number;
   position: [number, number];
+  /**
+   * 首屏要预热的资源（纹理 + moc3），由 Live2DCharacter 在挂载时立即并发下载。
+   *
+   * 为什么需要它：引擎的加载顺序是「运行时 JS → 引擎包 → 读 model3.json →
+   * 才去下纹理和 moc3」，天然形成瀑布。把这些大件提到最前面并发下载，
+   * 能把「下载」和「引擎初始化」重叠起来。
+   *
+   * 改贴图格式/文件名时记得同步这里（model3.json 与它必须指向同一批文件）。
+   */
+  preload?: string[];
 };
 
 export const COMPANION_LOOK: CompanionLook = {
@@ -29,4 +39,11 @@ export const COMPANION_LOOK: CompanionLook = {
   path: '/live2d/hiyori/Hiyori.model3.json',
   scale: 0.95,
   position: [0, 0.06],
+  // 贴图用 WebP：1024² 带 alpha，1132KB → 340KB（q=90 视觉几乎无损）。
+  // PNG 原图保留在同目录作源文件，需要回退时把 model3.json 改回 .png 即可。
+  preload: [
+    '/live2d/hiyori/Hiyori.2048/texture_00.webp',
+    '/live2d/hiyori/Hiyori.2048/texture_01.webp',
+    '/live2d/hiyori/Hiyori.moc3',
+  ],
 };

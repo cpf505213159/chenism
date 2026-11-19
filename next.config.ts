@@ -50,6 +50,36 @@ const nextConfig: NextConfig = {
   // 上 CSP 需要 nonce 化，收益不如风险大，这里先给能无条件生效的几项。
   async headers() {
     return [
+      /**
+       * 角色资源长缓存。
+       *
+       * 默认 Next 对 public/ 静态文件给 `max-age=0`：每次打开页面都要重新验证
+       * （甚至重新下载）。Live2D 的贴图 + moc3 + 引擎合计约 1MB，在 3Mbps 的
+       * 轻量服务器上就是好几秒——这是看板娘"每次访问都要等"的主因。
+       *
+       * 这些资源是角色资产、几乎不变，给 30 天 + 7 天 stale-while-revalidate：
+       * 二次访问直接命中本地缓存（0 请求），过期后先出旧图再后台刷新，不会白屏。
+       * 注意：换模型/换贴图时要改文件名（如 texture_00@2.webp）或路径版本，
+       * 否则老访客最长 30 天才看到新资源。
+       */
+      {
+        source: '/live2d/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=604800',
+          },
+        ],
+      },
+      {
+        source: '/_l2d/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=604800',
+          },
+        ],
+      },
       {
         source: '/:path*',
         headers: [
