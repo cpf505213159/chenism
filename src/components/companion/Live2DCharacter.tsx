@@ -175,7 +175,9 @@ export function Live2DCharacter({
         canvas.setAttribute('aria-hidden', 'true');
         // 宽高交给引擎：它内部按 clientWidth × devicePixelRatio 计算，
         // 这里手写会和它的 resize 逻辑互相覆盖（canvas-manager 里有注释警告）
-        canvas.style.cssText = 'display:block;width:100%;height:100%;';
+        // 初始 opacity 为 0：先让首帧海报露出来，等 loaded 再淡入
+        canvas.style.cssText =
+          'display:block;width:100%;height:100%;opacity:0;transition:opacity 420ms ease;';
         host.appendChild(canvas);
 
         const l2d = init(canvas);
@@ -198,7 +200,10 @@ export function Live2DCharacter({
         };
 
         l2d.on('loaded', () => {
-          if (!disposed) setStatus('ready');
+          if (disposed) return;
+          setStatus('ready');
+          // canvas 是命令式插入的，React 的 style 管不到它，这里手动淡入
+          if (canvas) canvas.style.opacity = '1';
         });
 
         await l2d.load({
@@ -227,7 +232,8 @@ export function Live2DCharacter({
 
         // 实测过每个 idle 的摆幅（ParamAngleZ / Arm 变化量），只轮播幅度靠前的几个，
         // 否则九成动作都是微微呼吸，看上去像没动。（Hiyori：m02/m05/m03/m06）
-        const EXPRESSIVE_IDLE = [1, 3, 2, 5];
+        // 索引对应 model3.json 里 Idle 数组的顺序：m01(0) m02(1) m03(2) m05(3) m06(4)
+        const EXPRESSIVE_IDLE = [1, 3, 2, 4];
         let idleCursor = 0;
 
         const playGesture = () => {
@@ -357,13 +363,34 @@ export function Live2DCharacter({
   }
 
   return (
-    <div
-      ref={hostRef}
-      className={className}
-      style={{
-        opacity: status === 'ready' ? 1 : 0,
-        transition: 'opacity 420ms ease',
-      }}
-    />
+    <div ref={hostRef} className={className} style={{ position: 'relative' }}>
+      {/*
+        首帧海报：只有 12KB，几乎和 HTML 同时到位，让角色"立刻出现"，
+        而不是先空着几秒。等 Live2D 就绪后 canvas 盖上来淡入，两者同构图、同画风，
+        切换时只有呼吸和眨眼开始动，不会跳。
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element --
+          定尺 12KB 首帧图，next/image 的按需缩放/格式转换在这里没有收益，
+          反而多一层运行时；这里要的是"和 HTML 同时到位"。 */}
+      <img
+        src="/live2d/hiyori/poster.webp"
+        alt=""
+        aria-hidden="true"
+        width={388}
+        height={464}
+        decoding="async"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          opacity: status === 'ready' ? 0 : 1,
+          transition: 'opacity 420ms ease',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      />
+    </div>
   );
 }
