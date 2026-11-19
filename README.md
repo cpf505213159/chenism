@@ -327,9 +327,9 @@ git add -A && git commit -m "..." && git push
 cd /opt/chenism && bash scripts/deploy.sh
 ```
 
-脚本流程：同步代码 → **保护并恢复 `content/`** → 装依赖 → 在 `/opt/.chenism-staging`
-**隔离构建**（全程不触碰运行中的 `.next`，构建失败线上零影响）→ 原子替换产物 +
-`pm2 restart`（**停机约 3–5 秒**）→ 健康检查。
+脚本流程：同步代码 → **保护并恢复 `content/`** → 装依赖 → 用 `NEXT_DIST_DIR=.next.build`
+**独立构建**（`next.config.ts` 支持该变量，产物落在 `.next.build`；全程不触碰运行中的
+`.next`，构建失败线上零影响）→ 原子替换产物 + `pm2 restart`（**停机约 3–5 秒**）→ 健康检查。
 
 **验证方式**（脚本每次自动执行，也可手动）：
 

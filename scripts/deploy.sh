@@ -2,14 +2,16 @@
 # chenism 服务器一键更新 / 回滚（在服务器上执行，不是在开发环境）
 #
 #   bash scripts/deploy.sh                 # 常规更新：同步代码 -> 隔离构建 -> 切换 -> 验证
-#   bash scripts/deploy.sh --status       # 查看当前版本、快照、健康状态
+#   bash scripts/deploy.sh --status       # 查看当前版本、快照、健康状态（不受部署锁阻塞）
 #   bash scripts/deploy.sh --rollback     # 秒级回滚到上一版构建（再执行一次切回来）
 #   bash scripts/deploy.sh --sync-content# 用 Git 仓库的 content/ 覆盖服务器后台内容（慎用）
 #
 # 设计要点
 #  - 代码走 Git，内容走 /admin 后台：content/ 在更新时自动快照并恢复，
 #    避免 git reset --hard 覆盖后台在线编辑过的简历 / 项目文档。
-#  - 构建发生在独立 staging 目录，全程不触碰运行中的 .next，构建失败线上零影响。
+#  - 用 NEXT_DIST_DIR=.next.build 把产物输出到独立目录，构建全程不触碰运行中的
+#    .next；构建失败线上零影响。不能把源码复制出去用 symlink 构建——Next 16 的
+#    Turbopack 要求 node_modules 位于工作区内，会直接报 "Could not find Next.js"。
 #  - 唯一停机窗口是「替换 .next + pm2 restart」，约 3~5 秒。
 #  - 保留 .next.prev 作为回滚快照；切换后任一健康检查失败自动回滚。
 #  - 并发锁防止两个部署互相踩；每步失败都有明确日志。
@@ -18,13 +20,13 @@ set -Eeuo pipefail
 
 APP="${APP:-chenism}"
 ROOT="${ROOT:-/opt/chenism}"
-STAGING="${STAGING:-/opt/.chenism-staging}"
 BRANCH="${BRANCH:-main}"
 PORT="${PORT:-3100}"
 HOST_HEADER="${HOST_HEADER:-chenism.dev}"
 LOCK="$ROOT/.deploy.lock"
 STATE="$ROOT/logs/deploy.state"
 LOG="$ROOT/logs/deploy.log"
+BUILD_DIR=".next.build"
 
 MODE="${1:-update}"
 SYNC_CONTENT=0
@@ -34,14 +36,15 @@ mkdir -p "$ROOT/logs"
 exec > >(tee -a "$LOG") 2>&1
 echo "---------- $(date '+%F %T')  deploy $MODE  ----------"
 
-# 并发锁：同时只允许一个部署
-exec 9>"$LOCK"
-if ! flock -n 9; then
-  echo "ERROR: 已有部署任务在运行（锁 $LOCK），本次退出"
-  exit 1
-fi
-
 CONTENT_BAK="$(mktemp -d /tmp/chenism-content.XXXXXX)"
+
+acquire_lock() {
+  exec 9>"$LOCK"
+  if ! flock -n 9; then
+    echo "ERROR: 已有部署任务在运行（锁 $LOCK），本次退出"
+    exit 1
+  fi
+}
 
 health_check() {
   for _ in $(seq 1 15); do
@@ -70,6 +73,21 @@ verify_endpoints() {
   return 0
 }
 
+# 构建时 distDir 会被写进产物配置，改名成 .next 后要改回来，
+# 否则 next start 会按 .next.build 去找文件。
+fix_dist_dir() {
+  node -e '
+    const fs = require("fs");
+    const f = process.argv[1];
+    if (!fs.existsSync(f)) process.exit(0);
+    const j = JSON.parse(fs.readFileSync(f, "utf8"));
+    if (j.config && j.config.distDir && j.config.distDir !== ".next") {
+      j.config.distDir = ".next";
+      fs.writeFileSync(f, JSON.stringify(j));
+    }
+  ' "$ROOT/.next/required-server-files.json" 2>/dev/null || true
+}
+
 rollback_now() {
   echo "!! 自动回滚到上一版构建"
   if [ ! -d "$ROOT/.next.prev" ]; then
@@ -79,6 +97,7 @@ rollback_now() {
   rm -rf "$ROOT/.next.failed"
   mv "$ROOT/.next" "$ROOT/.next.failed" 2>/dev/null || true
   mv "$ROOT/.next.prev" "$ROOT/.next"
+  fix_dist_dir
   pm2 restart "$APP" --update-env >/dev/null 2>&1 || true
   if health_check && verify_endpoints; then
     echo "OK 自动回滚成功，服务已恢复"
@@ -95,7 +114,7 @@ on_error() {
   exit "$code"
 }
 trap on_error ERR
-trap 'rm -rf "$CONTENT_BAK" "$STAGING"' EXIT
+trap 'rm -rf "$CONTENT_BAK" "$ROOT/$BUILD_DIR"' EXIT
 
 case "$MODE" in
   --status|status)
@@ -109,12 +128,14 @@ case "$MODE" in
     exit 0
     ;;
   --rollback|rollback)
+    acquire_lock
     [ -d "$ROOT/.next.prev" ] || { echo "FAIL 没有 .next.prev 快照可回滚"; exit 1; }
     tmp="$ROOT/.next.swap"
     rm -rf "$tmp"
     mv "$ROOT/.next" "$tmp"
     mv "$ROOT/.next.prev" "$ROOT/.next"
     mv "$tmp" "$ROOT/.next.prev"
+    fix_dist_dir
     pm2 restart "$APP" --update-env >/dev/null 2>&1
     if ! health_check || ! verify_endpoints; then
       echo "FAIL 回滚后验证失败，请人工检查"
@@ -127,6 +148,8 @@ case "$MODE" in
   update|--update|"") SYNC_CONTENT=0 ;;
   *) echo "用法: bash scripts/deploy.sh [--status|--rollback|--sync-content]"; exit 2 ;;
 esac
+
+acquire_lock
 
 echo "[1/7] 预检"
 [ -d "$ROOT/.git" ] || { echo "FAIL $ROOT 不是 git 仓库"; exit 1; }
@@ -159,29 +182,20 @@ fi
 echo "[4/7] 依赖 pnpm install --frozen-lockfile"
 (cd "$ROOT" && pnpm install --frozen-lockfile --prefer-offline) 2>&1 | tail -8
 
-echo "[5/7] 隔离构建（staging，不影响线上）"
-rm -rf "$STAGING"
-mkdir -p "$STAGING"
-rsync -a --delete \
-  --exclude='.git' --exclude='node_modules' \
-  --exclude='.next' --exclude='.next.*' \
-  --exclude='content' --exclude='public' --exclude='.env.local' \
-  --exclude='logs' --exclude='.deploy.lock' --exclude='ecosystem.config.cjs' \
-  "$ROOT/" "$STAGING/"
-ln -sfn "$ROOT/node_modules" "$STAGING/node_modules"
-ln -sfn "$ROOT/content"      "$STAGING/content"
-ln -sfn "$ROOT/public"       "$STAGING/public"
-ln -sfn "$ROOT/.env.local"   "$STAGING/.env.local"
-(cd "$STAGING" && pnpm build) 2>&1 | tail -20
-[ -f "$STAGING/.next/BUILD_ID" ] || { echo "FAIL 构建产物缺失 BUILD_ID"; exit 1; }
-echo "  BUILD_ID=$(cat "$STAGING/.next/BUILD_ID")"
+echo "[5/7] 隔离构建（NEXT_DIST_DIR=$BUILD_DIR，不影响线上）"
+rm -rf "$ROOT/$BUILD_DIR"
+(cd "$ROOT" && NEXT_DIST_DIR="$BUILD_DIR" pnpm build) 2>&1 | tail -20
+[ -f "$ROOT/$BUILD_DIR/BUILD_ID" ] || { echo "FAIL 构建产物缺失 BUILD_ID"; exit 1; }
+echo "  BUILD_ID=$(cat "$ROOT/$BUILD_DIR/BUILD_ID")"
 
 echo "[6/7] 切换产物并重启（停机窗口约 3-5s）"
 rm -rf "$ROOT/.next.prev"
 mv "$ROOT/.next" "$ROOT/.next.prev"
-mv "$STAGING/.next" "$ROOT/.next"
+mv "$ROOT/$BUILD_DIR" "$ROOT/.next"
+fix_dist_dir
 SWITCHED=1
 pm2 restart "$APP" --update-env >/dev/null 2>&1
+pm2 save >/dev/null 2>&1 || true
 
 echo "[7/7] 健康检查"
 if ! health_check; then

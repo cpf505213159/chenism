@@ -9,6 +9,10 @@ if (process.env.NODE_ENV === 'production' && !process.env.SITE_URL) {
 }
 
 const nextConfig: NextConfig = {
+  // 生产热更新时用独立 distDir 构建，避免 `next build` 清空正在服务的 .next。
+  // 常规 build / start 不设该变量，仍用默认 .next；deploy.sh 会在构建时设、
+  // 切换产物后由 pm2 以默认值启动，两边始终指向同一个目录名。
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // 显式关闭：Next 16.4 起 create-next-app 默认写入 true。
   // 本站全站构建期静态产出，不需要请求时缓存岛；
   // 且 Cache Components 依赖 Node 运行时、不支持 output:'export'，

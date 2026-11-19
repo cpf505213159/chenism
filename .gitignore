@@ -39,4 +39,5 @@ ecosystem.config.cjs
 .next.failed/
 .next.swap/
 .next.rollback.tmp/
+.next.build/
 logs/
