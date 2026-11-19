@@ -22,7 +22,7 @@ export function DataSnapshot({ stats }: { stats: SiteStats }) {
 
     console.log(
       `%c 数据快照 %c 按 Shift + D 打开\n\n${bars}\n\n 样本量 n=${stats.projects}，置信区间就不算了。`,
-      'background:#b0523a;color:#fff;padding:2px 6px;border-radius:2px',
+      'background:#9a3b22;color:#fff;padding:2px 6px;border-radius:2px',
       'color:#888',
     );
 
