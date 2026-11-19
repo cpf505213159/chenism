@@ -74,6 +74,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
+        {/*
+          角色首帧海报提前下载。
+          Companion 有一个 `mounted` 门控（避免 hydration mismatch），海报的 img 要等
+          JS hydrate 完才渲染；若等那时再请求，白白多一次往返。这里让浏览器解析 HTML
+          时就开始下，等 img 出现时直接命中缓存。
+        */}
+        {getAiMode() !== 'off' && (
+          <link rel="preload" as="image" href="/live2d/hiyori/poster.webp" />
+        )}
       </head>
       <body className="min-h-dvh antialiased">
         <a
