@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
  * 后 600ms 内淡出并彻底停掉。
  *
  * 开销控制（这是重点，避免再次卡顿）：
- * - 固定 24 个粒子，对象复用，每帧不分配新对象
+ * - 固定 32 个粒子，对象复用，每帧不分配新对象
  * - 帧率上限 30fps，DPR 上限 2
  * - 只跑一次：淡出结束后 cancelAnimationFrame，不留后台循环
  * - prefers-reduced-motion 直接不启动
@@ -41,7 +41,8 @@ export function RevealParticles({ active }: { active: boolean }) {
     canvas.style.height = `${h}px`;
     ctx.scale(dpr, dpr);
 
-    const COUNT = 24;
+    // 32 个：比初版 24 个更成"场"，但仍远低于会掉帧的量级
+    const COUNT = 32;
     type P = {
       x: number;
       y: number;
