@@ -81,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           时就开始下，等 img 出现时直接命中缓存。
         */}
         {getAiMode() !== 'off' && (
-          <link rel="preload" as="image" href="/live2d/hiyori/poster.webp" />
+          <link rel="preload" as="image" href="/live2d/hiyori/poster-2.webp" />
         )}
       </head>
       <body className="min-h-dvh antialiased">

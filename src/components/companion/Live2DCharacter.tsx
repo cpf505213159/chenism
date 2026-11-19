@@ -368,12 +368,15 @@ export function Live2DCharacter({
         首帧海报：只有 12KB，几乎和 HTML 同时到位，让角色"立刻出现"，
         而不是先空着几秒。等 Live2D 就绪后 canvas 盖上来淡入，两者同构图、同画风，
         切换时只有呼吸和眨眼开始动，不会跳。
+
+        文件名带 `-2`：第一版截图时把下层页面元素也合成进去了，暗色主题下露出
+        一块灰底。`/live2d` 是 30 天缓存，必须换 URL 才能让老访客拿到修好的图。
       */}
       {/* eslint-disable-next-line @next/next/no-img-element --
           定尺 12KB 首帧图，next/image 的按需缩放/格式转换在这里没有收益，
           反而多一层运行时；这里要的是"和 HTML 同时到位"。 */}
       <img
-        src="/live2d/hiyori/poster.webp"
+        src="/live2d/hiyori/poster-2.webp"
         alt=""
         aria-hidden="true"
         width={388}
