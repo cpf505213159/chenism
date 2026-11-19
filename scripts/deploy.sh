@@ -199,6 +199,9 @@ rm -rf "$ROOT/$BUILD_DIR"
 (cd "$ROOT" && NEXT_DIST_DIR="$BUILD_DIR" pnpm build) 2>&1 | tail -20
 [ -f "$ROOT/$BUILD_DIR/BUILD_ID" ] || { echo "FAIL 构建产物缺失 BUILD_ID"; exit 1; }
 echo "  BUILD_ID=$(cat "$ROOT/$BUILD_DIR/BUILD_ID")"
+# Next 会把自定义 distDir 的类型目录写进 tsconfig include；还原为仓库版本，
+# 否则工作区长期脏，用户手动 git pull 也会因本地修改失败。
+git -C "$ROOT" checkout -- tsconfig.json 2>/dev/null || true
 
 echo "[6/7] 切换产物并重启（停机窗口约 3-5s）"
 rm -rf "$ROOT/.next.prev"
