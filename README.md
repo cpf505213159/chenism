@@ -303,6 +303,31 @@ pnpm start                        # 监听 3000，前面挂 Nginx 反代 + HTTPS
 - **无模型默认零成本**：不配 `DEEPSEEK_API_KEY` 就是纯 BM25，检索速度与命中率不受任何影响；配了也只是异步追加小结。
 - 分享卡与 PDF 是构建/本机产物：改完内容后如需更新，重跑 `pnpm og` / `pnpm print:resume` 并提交产物；这不影响在线内容的即时可见性。
 
+### 过渡期：域名未备案，用 IP + 端口访问
+
+域名（`chenpf.cloud`）尚未完成 ICP 备案，备案前**不解析域名、不占用 80 / 443**，直接用：
+
+```
+http://118.89.56.120:3100
+```
+
+落地方式（已完成，均为独立改动，不触碰服务器上已有的 `git-test` 等站点）：
+
+| 层 | 配置 |
+|---|---|
+| 进程 | `ecosystem.config.cjs` 的 `start -H 0.0.0.0 -p 3100`（Next 16 必须用 `-H`，`HOSTNAME` 环境变量无效） |
+| 部署地址 | `.env.local` 的 `SITE_URL=http://118.89.56.120:3100`，`pnpm build` 后 canonical / sitemap / og / JSON-LD 都指向可达地址 |
+| 系统防火墙 | `firewall-cmd --permanent --add-port=3100/tcp` + `reload` |
+| **云安全组** | ⚠️ **腾讯云控制台 → 轻量应用服务器 → 防火墙 → 添加规则：TCP 3100，来源 `0.0.0.0/0`**。这是云平台侧规则，服务器内改不了，必须手动加；没加之前公网访问会超时 |
+| Nginx | `conf.d/chenism.conf`（`server_name chenism.dev` 反代 3100）**保留但备案前不触发**，域名未解析时裸 IP 走原有默认站点；备案后直接改 `server_name` 即可复用 |
+
+两点注意：
+
+- 备案前是 **HTTP 明文**，登录 Cookie 没有 `secure` 标志；不要在公共网络下做后台敏感操作，拿到证书后立刻切 HTTPS。
+- 内容文件（`content/data/site.json` 的邮箱、`resume.json` 的 `url`）里仍写着 `chenism.dev`，那是历史占位值，**备案通过后与 `SITE_URL`、Nginx `server_name` 一起统一改成 `chenpf.cloud`**，现在不动以免反复改。
+
+**备案完成后切回域名**（一次性）：域名续期到 ≥3 个月并完成实名 → 备案通过 → DNS A 记录指向 `118.89.56.120` → 申请证书配 443 → `SITE_URL=https://chenpf.cloud` → 改 Nginx `server_name chenpf.cloud www.chenpf.cloud` → pm2 改回 `-H 127.0.0.1` → 跑一次 `bash scripts/deploy.sh`。页脚记得挂 ICP 备案号，网站开通 30 日内做公安备案。
+
 ### 一键更新 / 回滚（生产服务器）
 
 当前生产部署约定：
@@ -311,9 +336,9 @@ pnpm start                        # 监听 3000，前面挂 Nginx 反代 + HTTPS
 |---|---|
 | 项目目录 | `/opt/chenism`（`git clone` 自本仓库，分支 `main`） |
 | 依赖 | Node 22 + `pnpm install --frozen-lockfile` |
-| 运行端口 | `3100`，**仅监听 `127.0.0.1`** |
-| 进程管理 | PM2 应用 `chenism`（`ecosystem.config.cjs`），`pm2-root.service` 开机 `resurrect` |
-| 对外入口 | Nginx `conf.d/chenism.conf` 按 `server_name chenism.dev` 反代到 3100；80 端口上其他站点不受影响 |
+| 运行端口 | `3100`，见下方「过渡期：IP + 端口访问」——备案前监听 `0.0.0.0` 直连，备案后可改回 `127.0.0.1` 全走 Nginx |
+| 进程管理 | PM2 应用 `chenism`（`ecosystem.config.cjs`，不进 Git），`pm2-root.service` 开机 `resurrect` |
+| 对外入口 | 备案前 `http://118.89.56.120:3100` 直连；Nginx `conf.d/chenism.conf` 按 `server_name` 反代到 3100 的配置**保留但备案前不触发**（域名未解析、未备案） |
 | 环境变量 | `/opt/chenism/.env.local`（`chmod 600`，不进 Git） |
 | 日志 | `/opt/chenism/logs/{pm2-out,pm2-err,deploy}.log` |
 
@@ -335,13 +360,19 @@ cd /opt/chenism && bash scripts/deploy.sh
 
 ```bash
 bash scripts/deploy.sh --status                 # 当前 commit / 快照 / 健康状态
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: chenism.dev' http://127.0.0.1/
+# 过渡期主入口：IP + 端口直连（从外部机器执行才算真正验证公网可达）
+curl -s -o /dev/null -w '%{http_code}\n' http://118.89.56.120:3100/
 curl -s -X POST -H 'content-type: application/json' \
-  -d '{"q":"指标口径是怎么统一的"}' http://127.0.0.1:3100/api/ask
-curl -s -D - -o /dev/null http://127.0.0.1:3100/resume.json | grep -i cache-control
+  -d '{"q":"指标口径是怎么统一的"}' http://118.89.56.120:3100/api/ask
+curl -s -D - -o /dev/null http://118.89.56.120:3100/resume.json | grep -i cache-control
+# 服务器本机侧（不经云安全组）
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3100/
 ```
 
-四项自动检查：首页 200、`/resume.json` 为 `no-store`、`/api/ask` 返回 `ok:true`、Nginx 反代链路 200。
+四项自动检查：首页 200、`/resume.json` 为 `no-store`、`/api/ask` 返回 `ok:true`、`/resume` 页面 200 —— 全部走 3100 直连，不依赖 Nginx 与域名解析。
+
+> 注意：脚本的健康检查走 `127.0.0.1:3100`（服务器本机），**不受云安全组影响**。
+> 若脚本全绿但公网访问超时，唯一原因就是云安全组未放行 TCP 3100，按上表添加规则即可。
 
 **异常处理**：
 

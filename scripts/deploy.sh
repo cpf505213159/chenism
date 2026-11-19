@@ -22,7 +22,9 @@ APP="${APP:-chenism}"
 ROOT="${ROOT:-/opt/chenism}"
 BRANCH="${BRANCH:-main}"
 PORT="${PORT:-3100}"
-HOST_HEADER="${HOST_HEADER:-chenism.dev}"
+# 默认「IP + 端口」直连：Host 头用 127.0.0.1:PORT（等价于 curl 默认值），不依赖域名。
+# 备案后改走 Nginx 域名反代时，可显式 HOST_HEADER=chenpf.cloud 让健康检查带域名。
+HOST_HEADER="${HOST_HEADER:-127.0.0.1:$PORT}"
 LOCK="$ROOT/.deploy.lock"
 STATE="$ROOT/logs/deploy.state"
 LOG="$ROOT/logs/deploy.log"
@@ -57,7 +59,7 @@ health_check() {
 }
 
 verify_endpoints() {
-  local cc ask via_nginx
+  local cc ask page
   cc="$(curl -s -D - -o /dev/null -H "Host: $HOST_HEADER" \
     "http://127.0.0.1:$PORT/resume.json" 2>/dev/null | grep -i '^cache-control' || true)"
   echo "$cc" | grep -qi 'no-store' || { echo "FAIL /resume.json 缓存头异常: ${cc:-无}"; return 1; }
@@ -67,9 +69,10 @@ verify_endpoints() {
     "http://127.0.0.1:$PORT/api/ask" 2>/dev/null || true)"
   echo "$ask" | grep -q '"ok":true' || { echo "FAIL /api/ask 未命中: ${ask:0:120}"; return 1; }
 
-  via_nginx="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-    -H "Host: $HOST_HEADER" http://127.0.0.1/ 2>/dev/null || echo 000)"
-  [ "$via_nginx" = "200" ] || { echo "FAIL nginx 反代异常: $via_nginx"; return 1; }
+  # 直连模式校验关键页面；备案前 80 端口属于服务器原有站点，不检查 Nginx 反代。
+  page="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+    -H "Host: $HOST_HEADER" "http://127.0.0.1:$PORT/resume" 2>/dev/null || echo 000)"
+  [ "$page" = "200" ] || { echo "FAIL /resume 页面异常: $page"; return 1; }
   return 0
 }
 
