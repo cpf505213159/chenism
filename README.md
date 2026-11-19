@@ -303,6 +303,65 @@ pnpm start                        # 监听 3000，前面挂 Nginx 反代 + HTTPS
 - **无模型默认零成本**：不配 `DEEPSEEK_API_KEY` 就是纯 BM25，检索速度与命中率不受任何影响；配了也只是异步追加小结。
 - 分享卡与 PDF 是构建/本机产物：改完内容后如需更新，重跑 `pnpm og` / `pnpm print:resume` 并提交产物；这不影响在线内容的即时可见性。
 
+### 一键更新 / 回滚（生产服务器）
+
+当前生产部署约定：
+
+| 项 | 值 |
+|---|---|
+| 项目目录 | `/opt/chenism`（`git clone` 自本仓库，分支 `main`） |
+| 依赖 | Node 22 + `pnpm install --frozen-lockfile` |
+| 运行端口 | `3100`，**仅监听 `127.0.0.1`** |
+| 进程管理 | PM2 应用 `chenism`（`ecosystem.config.cjs`），`pm2-root.service` 开机 `resurrect` |
+| 对外入口 | Nginx `conf.d/chenism.conf` 按 `server_name chenism.dev` 反代到 3100；80 端口上其他站点不受影响 |
+| 环境变量 | `/opt/chenism/.env.local`（`chmod 600`，不进 Git） |
+| 日志 | `/opt/chenism/logs/{pm2-out,pm2-err,deploy}.log` |
+
+**日常更新**：
+
+```bash
+# 本地：改完代码后
+git add -A && git commit -m "..." && git push
+
+# 服务器：一条命令
+cd /opt/chenism && bash scripts/deploy.sh
+```
+
+脚本流程：同步代码 → **保护并恢复 `content/`** → 装依赖 → 在 `/opt/.chenism-staging`
+**隔离构建**（全程不触碰运行中的 `.next`，构建失败线上零影响）→ 原子替换产物 +
+`pm2 restart`（**停机约 3–5 秒**）→ 健康检查。
+
+**验证方式**（脚本每次自动执行，也可手动）：
+
+```bash
+bash scripts/deploy.sh --status                 # 当前 commit / 快照 / 健康状态
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: chenism.dev' http://127.0.0.1/
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"q":"指标口径是怎么统一的"}' http://127.0.0.1:3100/api/ask
+curl -s -D - -o /dev/null http://127.0.0.1:3100/resume.json | grep -i cache-control
+```
+
+四项自动检查：首页 200、`/resume.json` 为 `no-store`、`/api/ask` 返回 `ok:true`、Nginx 反代链路 200。
+
+**异常处理**：
+
+| 情况 | 行为 |
+|---|---|
+| git 拉取 / 依赖 / 构建失败 | 在切换前退出，**线上完全不受影响**（`.next` 未动） |
+| 切换后健康检查失败 | 自动用 `.next.prev` 回滚并重启，无需人工 |
+| 并发执行 | `flock` 锁拒绝第二个任务 |
+| 磁盘不足 1G | 预检拦截 |
+| 回滚后仍不健康 | 日志指向 `pm2 logs chenism` 与 `logs/deploy.log`，需人工介入 |
+
+**回滚**：`bash scripts/deploy.sh --rollback` 秒级切回上一版构建并重新验证。
+它交换 `.next` 与 `.next.prev`，所以再执行一次会切回当前版本。每次部署只保留最近一版快照。
+
+**两个边界**：
+
+1. `content/` 以服务器后台数据为准——脚本默认恢复它，因此**代码走 Git、内容走 `/admin`**。
+   确需用仓库内容覆盖服务器内容时用 `--sync-content`（会覆盖后台改过的简历/项目，慎用）。
+2. 三层缓存是**进程内单实例**，横向扩容需换共享存储。
+
 ### Vercel（Serverless，可展示但**不适合在线编辑**）
 
 1. 导入仓库，框架自动识别为 Next.js。

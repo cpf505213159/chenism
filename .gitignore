@@ -31,3 +31,12 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# 服务器部署产物（运行时生成，不进仓库）
+ecosystem.config.cjs
+.deploy.lock
+.next.prev/
+.next.failed/
+.next.swap/
+.next.rollback.tmp/
+logs/
