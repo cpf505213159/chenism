@@ -167,7 +167,19 @@ else
 fi
 
 echo "[3/7] 同步代码 origin/$BRANCH"
-git -C "$ROOT" fetch --quiet origin "$BRANCH"
+# GitHub 从国内机房偶发连接停滞：低速即判失败并重试，避免整个部署卡死。
+# 拉取失败时线上完全不受影响（还没开始构建/切换）。
+FETCH_OK=0
+for i in 1 2 3; do
+  if GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=15 \
+     timeout 45 git -C "$ROOT" fetch --quiet origin "$BRANCH"; then
+    FETCH_OK=1
+    break
+  fi
+  echo "  fetch 超时/失败，重试 $i/3"
+  sleep 2
+done
+[ "$FETCH_OK" = "1" ] || { echo "FAIL 无法从 origin 拉取代码，线上保持不变"; exit 1; }
 OLD="$(git -C "$ROOT" rev-parse --short HEAD)"
 git -C "$ROOT" reset --hard --quiet "origin/$BRANCH"
 NEW="$(git -C "$ROOT" rev-parse --short HEAD)"
