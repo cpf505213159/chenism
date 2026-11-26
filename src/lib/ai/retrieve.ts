@@ -29,6 +29,21 @@ const PRIOR: Record<Chunk['kind'], number> = {
   resume: 0.7,
 };
 
+/**
+ * 明确的"确实没做过 / 不在覆盖范围"的边界主题。
+ *
+ * 难点在于：这些词并非完全没在正文出现——"数仓"出现在 tracking-quality 的团队分工里
+ * （数仓同学负责接调度），"实时"出现在 ecom-segment 的"不做实时、T+1 够用"这类否决句里。
+ * 光靠 BM25 的二元词命中，会把"提到过"误当成"做过"，从而对"有没有做过实时数仓"答"有"。
+ * 这类能力/诉求站内没有真实产出，直接按无内容处理，宁缺毋滥。
+ */
+const OUT_OF_SCOPE: RegExp[] = [
+  /数仓|数据仓库|实时计算/,
+  /kubernetes|k8s|容器编排|docker swarm/,
+  /期望薪资|薪资|package/,
+  /内推|面试建议/,
+];
+
 /** 问句里的高频虚词：不剔除会污染 BM25（"有没有做过"几乎命中所有块） */
 const STOP_PHRASES = [
   '有没有',
@@ -203,7 +218,80 @@ function idf(term: string, idx: Index): number {
 
 const isLatin = (t: string) => /^[a-z]/.test(t);
 
+/**
+ * 浏览 / 列举意图。
+ *
+ * "做了什么项目""有哪些作品""介绍一下简历"这类泛指问题，词全被 STOP_PHRASES 剥掉，
+ * 没有任何具体主题词可匹配，BM25 会直接空手而归——但站里明明有一堆项目和一份简历，
+ * 回一句"站内没有找到相关内容"是错的。这里识别这类问题，直接给概览。
+ */
+const LIST_NOUN = /(项目|作品|案例|经历|经验|简历|背景|介绍|干什么|做的是什么)/;
+const LIST_ASK =
+  /(有哪些|有什么|做过什么|做了什么|做过哪些|哪些项目|都有什么|都做过|列一下|列举|看看|所有|全部|概览|介绍)/;
+
+function isListingIntent(query: string): boolean {
+  if (!LIST_NOUN.test(query)) return false;
+  if (LIST_ASK.test(query)) return true;
+  // 极短的名词式提问（"项目""简历""经历"）也按浏览处理
+  return query.trim().length <= 4;
+}
+
+/** 列举意图的兜底结果：给项目概览或简历概览，而不是 no_match */
+function listingCitations(query: string, topK: number): Citation[] {
+  const idx = getIndex();
+  const wantsResume = /(简历|经历|经验|背景|你是谁|介绍|干什么|做什么工作|工作)/.test(query);
+
+  if (wantsResume) {
+    const order = ['resume::basics', 'resume::work', 'resume::skills'];
+    const byId = new Map(idx.chunks.map((c) => [c.id, c] as const));
+    return order
+      .map((id) => byId.get(id))
+      .filter((c): c is Chunk => Boolean(c))
+      .slice(0, topK)
+      .map((c) => ({
+        slug: c.slug,
+        title: c.title,
+        heading: c.heading,
+        quote: briefLine(c.text),
+        url: c.url,
+        score: 1,
+      }));
+  }
+
+  const seen = new Set<string>();
+  const out: Citation[] = [];
+  for (const c of idx.chunks) {
+    if (c.kind !== 'project-summary' || seen.has(c.slug)) continue;
+    seen.add(c.slug);
+    out.push({
+      slug: c.slug,
+      title: c.title,
+      heading: c.heading,
+      quote: briefLine(c.text.split('\n').slice(1).join('\n')),
+      url: c.url,
+      score: 1,
+    });
+    if (out.length >= topK) break;
+  }
+  return out;
+}
+
+/** 取块里第一行有信息量的正文当摘录（去掉 md 强调标记） */
+function briefLine(text: string): string {
+  const line =
+    text
+      .replace(/\*\*/g, '')
+      .replace(/`/g, '')
+      .split('\n')
+      .map((s) => s.trim())
+      .find((s) => s.length > 0) ?? '';
+  return line.length > 120 ? `${line.slice(0, 118)}…` : line;
+}
+
 export function retrieve(query: string, topK = 3): Citation[] {
+  // 覆盖边界：这些主题站内没有真实产出，即使个别词在正文里被提到，也不能答"做过"
+  if (OUT_OF_SCOPE.some((re) => re.test(query))) return [];
+
   const idx = getIndex();
   const baseTokens = [...new Set(tokenize(query))].filter(
     (t) => t.length > 1 || isLatin(t),
@@ -213,7 +301,9 @@ export function retrieve(query: string, topK = 3): Citation[] {
     for (const syn of SYNONYMS[t] ?? []) expanded.add(syn);
   }
   const queryTokens = [...expanded];
-  if (queryTokens.length === 0) return [];
+  if (queryTokens.length === 0) {
+    return isListingIntent(query) ? listingCitations(query, topK) : [];
+  }
 
   const matched = queryTokens.filter((t) => (idx.docFreq.get(t) ?? 0) > 0);
 
@@ -223,7 +313,9 @@ export function retrieve(query: string, topK = 3): Citation[] {
   const matchedLatin = matched.some(isLatin);
   if (unmatchedLatin.length > 0 && !matchedLatin) return [];
 
-  if (matched.length === 0) return [];
+  if (matched.length === 0) {
+    return isListingIntent(query) ? listingCitations(query, topK) : [];
+  }
 
   // 守卫二：最高 idf 仍很低 → 只命中了"或者""可以"这类泛词，不算证据
   const maxIdf = Math.max(...matched.map((t) => idf(t, idx)));

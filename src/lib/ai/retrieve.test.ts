@@ -49,6 +49,27 @@ describe('retrieve', () => {
     expect(retrieve('他', 3)).toEqual([]);
   });
 
+  it('泛指浏览（做了什么项目）返回项目概览，而不是空', () => {
+    const hits = retrieve('做了什么项目', 3);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.some((h) => h.slug !== 'resume')).toBe(true);
+  });
+
+  it('仅名词"项目"也走浏览兜底', () => {
+    expect(retrieve('项目', 3).length).toBeGreaterThan(0);
+  });
+
+  it('问简历概览落到 resume', () => {
+    const hits = retrieve('介绍一下你的简历', 3);
+    expect(hits.map((h) => h.slug)).toContain('resume');
+  });
+
+  it('浏览兜底不会把边界问题误判为有内容', () => {
+    expect(retrieve('有没有做过实时数仓', 3)).toEqual([]);
+    expect(retrieve('他期望薪资多少', 3)).toEqual([]);
+    expect(retrieve('他厉害吗', 3)).toEqual([]);
+  });
+
   it('清缓存后仍能正常检索', () => {
     invalidateSearchIndex();
     expect(retrieve('客服质检', 3).length).toBeGreaterThan(0);

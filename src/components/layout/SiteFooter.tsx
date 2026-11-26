@@ -72,6 +72,11 @@ export function SiteFooter() {
                 </a>
               </li>
               <li>
+                <a href="/rss.xml" className="text-muted transition-colors hover:text-ink">
+                  RSS 订阅
+                </a>
+              </li>
+              <li>
                 <Link href="/resume" className="text-muted transition-colors hover:text-ink">
                   打印版简历
                 </Link>

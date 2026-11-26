@@ -6,12 +6,12 @@
   "description": "陈攀峰的个人站点：电商数据分析实践——用户增长、商品经营、大促复盘与客服体验，含可量化结果的项目详情、结构化简历与 SQL / Python / 建模的完整过程。",
   "url": "http://localhost:3000",
   "locale": "zh-CN",
-  "email": "hello@chenism.dev",
+  "email": "cpf000002@163.com",
   "location": "中国 · 杭州",
   "available": "开放数据分析师岗位机会 · 杭州 / 远程",
   "socials": [
-    { "label": "GitHub", "href": "https://github.com/chenism", "icon": "github" },
-    { "label": "邮箱", "href": "mailto:hello@chenism.dev", "icon": "mail" },
+    { "label": "GitHub", "href": "https://github.com/cpf505213159", "icon": "github" },
+    { "label": "邮箱", "href": "mailto:cpf000002@163.com", "icon": "mail" },
     { "label": "RSS", "href": "/rss.xml", "icon": "rss" }
   ],
   "nav": [

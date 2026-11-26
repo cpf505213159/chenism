@@ -4,6 +4,7 @@ import { Container } from '@/components/ui/Container';
 import { PrintButton } from '@/components/resume/PrintButton';
 import { ArrowUpRight } from '@/components/ui/Icons';
 import { getResume } from '@/data/resume';
+import { getFeaturedProjects } from '@/lib/content/repository';
 import { site, getSocial, socialHref } from '@/data/site';
 import { durationMonths, formatDuration, formatMonth, formatPeriod } from '@/lib/utils/format';
 
@@ -26,6 +27,8 @@ export const metadata: Metadata = {
 export default function ResumePage() {
   const resume = getResume();
   const github = getSocial('github');
+  // 代表项目与首页精选共用同一份数据：改 frontmatter 的 featured 即可，两处同步
+  const featuredProjects = getFeaturedProjects(3);
   return (
     <Container className="py-12 sm:py-16">
       {/* 抬头 */}
@@ -120,6 +123,29 @@ export default function ResumePage() {
                 );
               })}
             </ol>
+          </section>
+
+          {/* 代表项目：简历只放结论，细节留在项目页 */}
+          <section className="mb-12 print-page">
+            <p className="kicker mb-5">代表项目</p>
+            <ul className="space-y-5">
+              {featuredProjects.map((project) => (
+                <li key={project.slug}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <h2 className="text-[0.95rem] font-medium">{project.title}</h2>
+                    <span className="font-mono text-[0.7rem] text-faint">
+                      {formatPeriod(project.period)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[0.84rem] leading-relaxed text-muted">{project.summary}</p>
+                  {project.metrics[0] && (
+                    <p className="mt-1 font-mono text-[0.7rem] text-faint">
+                      {project.metrics[0].label}：{project.metrics[0].value}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
           </section>
 
           {/* 教育 */}

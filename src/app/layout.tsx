@@ -31,7 +31,10 @@ export const metadata: Metadata = {
     description: site.tagline,
     images: ['/og/home.png'],
   },
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    types: { 'application/rss+xml': '/rss.xml' },
+  },
   robots: { index: true, follow: true },
 };
 

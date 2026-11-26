@@ -41,3 +41,6 @@ ecosystem.config.cjs
 .next.rollback.tmp/
 .next.build/
 logs/
+
+# 作品集项目独立发布到 GitHub，不纳入站点仓库（含大文件与独立许可证）
+portfolio/
