@@ -99,7 +99,8 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          // 不设 X-Frame-Options：内置浏览器/预览面板以跨源 iframe 打开本站时，
+          // SAMEORIGIN 会把整页挡掉只剩白屏。个人站点被点击劫持的风险可忽略。
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
